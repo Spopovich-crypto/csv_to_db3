@@ -120,7 +120,7 @@ def mark_file_event_as_processed(
 
 
 # --- ファイル名からメタ情報を抽出 ---
-def extract_metadata_from_filename(file: Path) -> Optional[Dict[str, Any]]:
+def extract_metadata_from_filename(file: Path) -> FileMetadata:
     pattern = r"(?P<plant_code>[A-Z]+)#(?P<machine_code>\d+)(?P<datestr>\d{6})(?P<timestr>\d{6})_(?P<sensor_type>[^.]+)"
     match = re.match(pattern, file.name)
     if not match:
@@ -137,18 +137,19 @@ def extract_metadata_from_filename(file: Path) -> Optional[Dict[str, Any]]:
 
     end_time = min(max_end_time, file_mtime) if file_mtime else max_end_time
 
-    return {
-        "plant_name_from_file": match.group("plant_code"),
-        "machine_no_from_file": match.group("machine_code"),
-        "sensor_type": match.group("sensor_type"),
-        "start_time": dt,
-        "end_time": end_time,
-        "source_file": str(file),
-    }
+    return FileMetadata(
+        plant_code= match.group("plant_code"),
+        machine_no_from_file= match.group("machine_code"),
+        sensor_type= match.group("sensor_type"),
+        start_time= dt,
+        end_time= end_time,
+        source_file= str(file),
+    )
+    
 
 
 # --- 指定フォルダからファイルを収集 ---
-def collect_sensor_files(user_input: UserInput) -> List[Dict[str, Any]]:
+def collect_sensor_files(user_input: UserInput) -> List[FileMetadata]:
     all_files = list(Path(user_input.target_folder).rglob("*"))
     collected = []
 
