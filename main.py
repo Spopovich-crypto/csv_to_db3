@@ -120,7 +120,7 @@ def mark_file_event_as_processed(
 
 
 # --- ファイル名からメタ情報を抽出 ---
-def extract_metadata_from_filename(file: Path) -> FileMetadata:
+def extract_metadata_from_filename(file: Path) -> Optional[FileMetadata]:
     pattern = r"(?P<plant_code>[A-Z]+)#(?P<machine_code>\d+)(?P<datestr>\d{6})(?P<timestr>\d{6})_(?P<sensor_type>[^.]+)"
     match = re.match(pattern, file.name)
     if not match:
@@ -149,16 +149,16 @@ def extract_metadata_from_filename(file: Path) -> FileMetadata:
 
 
 # --- 指定フォルダからファイルを収集 ---
-def collect_sensor_files(user_input: UserInput) -> List[FileMetadata]:
-    all_files = list(Path(user_input.target_folder).rglob("*"))
+def collect_sensor_files(target_folder, name_patterns) -> List[FileMetadata]:
+    all_files = list(Path(target_folder).rglob("*"))
     collected = []
 
     tqdm.write(f"🔍 検索対象ファイル数: {len(all_files)}")
-    tqdm.write(f"📂 name_patterns: {user_input.name_patterns}")
+    tqdm.write(f"📂 name_patterns: {name_patterns}")
 
     for file in all_files:
         if file.suffix.lower() == ".csv":
-            if any(pat in file.name for pat in user_input.name_patterns):
+            if any(pat in file.name for pat in name_patterns):
                 tqdm.write(f"✅ マッチ: {file.name}")
                 metadata = extract_metadata_from_filename(file)
                 if metadata:
@@ -169,7 +169,7 @@ def collect_sensor_files(user_input: UserInput) -> List[FileMetadata]:
                 with zipfile.ZipFile(file, "r") as zipf:
                     for zip_info in zipf.infolist():
                         if any(
-                            pat in zip_info.filename for pat in user_input.name_patterns
+                            pat in zip_info.filename for pat in name_patterns
                         ):
                             tqdm.write(f"📦 ZIP内マッチ: {zip_info.filename}")
                             metadata = extract_metadata_from_filename(
@@ -187,8 +187,6 @@ def collect_sensor_files(user_input: UserInput) -> List[FileMetadata]:
 
 
 # --- グルーピング処理 ---
-
-
 def group_sensor_files(files: List[FileMetadata]) -> List[GroupedSensorFileSet]:
     grouped = defaultdict(list)
     for f in files:
@@ -369,7 +367,7 @@ def main(user_input):
     init_processed_file_periods_table(user_input.db_path)
 
     # 対象ファイル収集
-    all_files = collect_sensor_files(user_input)
+    all_files = collect_sensor_files(user_input.target_folder, user_input.name_patterns)
 
     # セット化（センサータイプごと、ファイル名prefixごと）
     grouped_sets = group_sensor_files(all_files)
